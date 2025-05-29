@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<title>Escáner con html5-qrcode</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    max-width: 600px;
+    margin: 30px auto;
+    padding: 0 15px;
+    background: #f9f9f9;
+    color: #333;
+    text-align: center;
+  }
+  #reader {
+    width: 100%;
+    max-width: 400px;
+    margin: auto;
+  }
+  button {
+    margin: 12px auto;
+    padding: 12px 24px;
+    font-size: 1.1em;
+    background-color: #007bff;
+    border: none;
+    color: white;
+    border-radius: 5px;
+    cursor: pointer;
+  }
+  button:hover {
+    background-color: #0056b3;
+  }
+</style>
+</head>
+<body>
+
+<h1>Escáner de Código de Barras</h1>
+
+<input type="text" id="barcode" placeholder="Código detectado" style="width: 100%; padding:8px; font-size:1em; margin-bottom:10px;" readonly />
+<button id="startScan">Iniciar Escáner</button>
+<button id="stopScan" style="display:none; background-color:#dc3545;">Detener Escáner</button>
+
+<div id="reader" style="display:none;"></div>
+
+<script src="https://unpkg.com/html5-qrcode"></script>
+<script>
+  const barcodeInput = document.getElementById('barcode');
+  const startScanBtn = document.getElementById('startScan');
+  const stopScanBtn = document.getElementById('stopScan');
+  const readerDiv = document.getElementById('reader');
+
+  let html5QrcodeScanner;
+
+  startScanBtn.addEventListener('click', () => {
+    readerDiv.style.display = 'block';
+    startScanBtn.style.display = 'none';
+    stopScanBtn.style.display = 'inline-block';
+
+    html5QrcodeScanner = new Html5Qrcode("reader");
+
+    html5QrcodeScanner.start(
+      { facingMode: "environment" },
+      {
+        fps: 10,    // escanear 10 veces por segundo
+        qrbox: { width: 250, height: 100 } // tamaño caja escaneo para código de barras
+      },
+      (decodedText, decodedResult) => {
+        // Aquí ponemos el código detectado
+        barcodeInput.value = decodedText;
+        // Paramos el escáner automáticamente al detectar código
+        html5QrcodeScanner.stop();
+        readerDiv.style.display = 'none';
+        stopScanBtn.style.display = 'none';
+        startScanBtn.style.display = 'inline-block';
+      },
+      (errorMessage) => {
+        // No hacer nada con errores menores (no se detectó código)
+      }
+    ).catch(err => {
+      alert('Error iniciando cámara: ' + err);
+      readerDiv.style.display = 'none';
+      stopScanBtn.style.display = 'none';
+      startScanBtn.style.display = 'inline-block';
+    });
+  });
+
+  stopScanBtn.addEventListener('click', () => {
+    if (html5QrcodeScanner) {
+      html5QrcodeScanner.stop();
+    }
+    readerDiv.style.display = 'none';
+    stopScanBtn.style.display = 'none';
+    startScanBtn.style.display = 'inline-block';
+  });
+</script>
+
+</body>
+</html>
