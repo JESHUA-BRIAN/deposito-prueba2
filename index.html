@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8" />
-<title>Escáner con html5-qrcode</title>
+<title>Depósito Stock con Escáner y Nombres</title>
 <style>
   body {
     font-family: Arial, sans-serif;
@@ -13,14 +13,23 @@
     color: #333;
     text-align: center;
   }
-  #reader {
+  label {
+    display: block;
+    margin: 12px 0 6px;
+    font-weight: bold;
+    text-align: left;
+  }
+  input[type="text"], input[type="number"] {
     width: 100%;
-    max-width: 400px;
-    margin: auto;
+    padding: 8px;
+    font-size: 1em;
+    border-radius: 4px;
+    border: 1px solid #ccc;
   }
   button {
-    margin: 12px auto;
-    padding: 12px 24px;
+    margin-top: 12px;
+    width: 100%;
+    padding: 12px;
     font-size: 1.1em;
     background-color: #007bff;
     border: none;
@@ -31,26 +40,141 @@
   button:hover {
     background-color: #0056b3;
   }
+  #stockList {
+    margin-top: 20px;
+    padding-left: 0;
+    list-style: none;
+    text-align: left;
+  }
+  #stockList li {
+    background: white;
+    padding: 10px;
+    margin-bottom: 6px;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  }
+  #reader {
+    width: 100%;
+    max-width: 400px;
+    margin: 20px auto 10px;
+  }
+  #startScan, #stopScan {
+    margin: 12px auto;
+    padding: 12px 24px;
+    font-size: 1.1em;
+    border-radius: 5px;
+    cursor: pointer;
+    border: none;
+    color: white;
+    display: inline-block;
+  }
+  #startScan {
+    background-color: #007bff;
+  }
+  #startScan:hover {
+    background-color: #0056b3;
+  }
+  #stopScan {
+    background-color: #dc3545;
+  }
+  #stopScan:hover {
+    background-color: #a71d2a;
+  }
 </style>
 </head>
 <body>
 
-<h1>Escáner de Código de Barras</h1>
+<h1>Gestión de Stock con Escáner</h1>
 
-<input type="text" id="barcode" placeholder="Código detectado" style="width: 100%; padding:8px; font-size:1em; margin-bottom:10px;" readonly />
-<button id="startScan">Iniciar Escáner</button>
-<button id="stopScan" style="display:none; background-color:#dc3545;">Detener Escáner</button>
+<label for="barcode">Código de Barras:</label>
+<input type="text" id="barcode" placeholder="Código detectado o ingresa manualmente" />
 
+<label for="productName" style="display:none;">Nombre del Producto:</label>
+<input type="text" id="productName" placeholder="Nombre del producto" style="display:none; margin-bottom: 10px;" />
+
+<label for="quantity">Cantidad:</label>
+<input type="number" id="quantity" value="1" min="1" />
+
+<button id="addBtn">Agregar stock</button>
+
+<div style="text-align:center;">
+  <button id="startScan">Iniciar Escáner</button>
+  <button id="stopScan" style="display:none;">Detener Escáner</button>
+</div>
 <div id="reader" style="display:none;"></div>
+
+<h2>Productos en Stock</h2>
+<ul id="stockList"></ul>
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
+  const stock = {}; // guardamos producto: {name, qty}
   const barcodeInput = document.getElementById('barcode');
+  const productNameInput = document.getElementById('productName');
+  const quantityInput = document.getElementById('quantity');
+  const addBtn = document.getElementById('addBtn');
+  const stockList = document.getElementById('stockList');
   const startScanBtn = document.getElementById('startScan');
   const stopScanBtn = document.getElementById('stopScan');
   const readerDiv = document.getElementById('reader');
 
   let html5QrcodeScanner;
+
+  // Mostrar/ocultar campo nombre según si el código existe
+  barcodeInput.addEventListener('input', () => {
+    const code = barcodeInput.value.trim();
+    if (code && !stock[code]) {
+      productNameInput.style.display = 'block';
+      productNameInput.previousElementSibling.style.display = 'block';
+    } else {
+      productNameInput.style.display = 'none';
+      productNameInput.previousElementSibling.style.display = 'none';
+    }
+  });
+
+  addBtn.addEventListener('click', () => {
+    const code = barcodeInput.value.trim();
+    const qty = parseInt(quantityInput.value);
+    const name = productNameInput.value.trim();
+
+    if (!code) {
+      alert('Por favor, ingresa un código de barras');
+      return;
+    }
+    if (qty <= 0 || isNaN(qty)) {
+      alert('Cantidad inválida');
+      return;
+    }
+
+    // Si el código no existe, pide nombre obligatorio
+    if (!stock[code]) {
+      if (!name) {
+        alert('Por favor, ingresa el nombre del producto para este nuevo código');
+        return;
+      }
+      stock[code] = { name: name, qty: qty };
+    } else {
+      stock[code].qty += qty;
+    }
+
+    updateStockList();
+
+    barcodeInput.value = '';
+    productNameInput.value = '';
+    quantityInput.value = 1;
+    productNameInput.style.display = 'none';
+    productNameInput.previousElementSibling.style.display = 'none';
+  });
+
+  function updateStockList() {
+    stockList.innerHTML = '';
+    for (const code in stock) {
+      const item = stock[code];
+      const li = document.createElement('li');
+      li.textContent = `Código: ${code} - Nombre: ${item.name} - Cantidad: ${item.qty}`;
+      stockList.appendChild(li);
+    }
+  }
 
   startScanBtn.addEventListener('click', () => {
     readerDiv.style.display = 'block';
@@ -62,20 +186,21 @@
     html5QrcodeScanner.start(
       { facingMode: "environment" },
       {
-        fps: 10,    // escanear 10 veces por segundo
-        qrbox: { width: 250, height: 100 } // tamaño caja escaneo para código de barras
+        fps: 10,
+        qrbox: { width: 250, height: 100 }
       },
       (decodedText, decodedResult) => {
-        // Aquí ponemos el código detectado
         barcodeInput.value = decodedText;
-        // Paramos el escáner automáticamente al detectar código
+        // Dispara el evento input para mostrar o no el campo nombre
+        barcodeInput.dispatchEvent(new Event('input'));
         html5QrcodeScanner.stop();
         readerDiv.style.display = 'none';
         stopScanBtn.style.display = 'none';
         startScanBtn.style.display = 'inline-block';
+        quantityInput.focus();
       },
       (errorMessage) => {
-        // No hacer nada con errores menores (no se detectó código)
+        // No hacemos nada con errores menores
       }
     ).catch(err => {
       alert('Error iniciando cámara: ' + err);
